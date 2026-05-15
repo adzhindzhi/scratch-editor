@@ -12,6 +12,10 @@ const baseConfig = new ScratchWebpackConfigBuilder({
         test: /\.(svg|png)$/i,
         resourceQuery: /^$/,
         type: 'asset'
+    })
+    .addModuleRule({
+        resourceQuery: /^\?(source|raw)$/,
+        type: 'asset/source'
     });
 
 const playgroundConfig = baseConfig.clone()

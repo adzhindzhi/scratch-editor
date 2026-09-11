@@ -32,7 +32,9 @@ const buildFrameDocument = ({urls, texts}) => {
 
     if (urls) {
         // Relative URLs in a srcdoc document resolve against the parent page.
-        // Resolve them here so the policy can name their origins.
+        // Resolve them here so the policy can name their origins; normalization
+        // also percent-encodes the quotes and angle brackets that would
+        // otherwise escape the src attribute below.
         const absolute = urls.map(url => new URL(url, document.baseURI).href);
         const origins = absolute.map(href => new URL(href).origin);
         scriptSrc = `script-src ${Array.from(new Set(origins)).join(' ')};`;

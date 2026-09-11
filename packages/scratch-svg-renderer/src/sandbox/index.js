@@ -46,7 +46,9 @@ class Sandbox {
      *     script must define `window.onSandboxInit` if this is given.
      */
     constructor (scripts, {timeoutMs = DEFAULT_TIMEOUT_MS, idleTimeoutMs = 0, init} = {}) {
-        this._scripts = scripts;
+        // Copied so a caller mutating the array or a descriptor after
+        // construction cannot change a frame built later by the first send().
+        this._scripts = scripts.map(script => ({...script}));
         this._init = init;
         this._timeoutMs = timeoutMs;
         this._idleTimeoutMs = idleTimeoutMs;

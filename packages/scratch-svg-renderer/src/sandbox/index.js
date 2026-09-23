@@ -46,6 +46,9 @@ class Sandbox {
      *     script must define `window.onSandboxInit` if this is given.
      */
     constructor (scripts, {timeoutMs = DEFAULT_TIMEOUT_MS, idleTimeoutMs = 0, init} = {}) {
+        if (!Array.isArray(scripts)) {
+            throw new TypeError(`Sandbox: expected an array of script descriptors, got ${typeof scripts}.`);
+        }
         // Copied so a caller mutating the array or a descriptor after
         // construction cannot change a frame built later by the first send().
         this._scripts = scripts.map(script => ({...script}));

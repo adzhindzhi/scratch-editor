@@ -194,10 +194,38 @@ test('iframe srcdoc contains CSP meta tag', async ({page}) => {
     expect(srcdoc).toContain('Content-Security-Policy');
     expect(srcdoc).toContain("default-src 'none'");
     expect(srcdoc).toContain('img-src data:');
-    // file://, so the scripts are embedded: an opaque frame cannot fetch them.
-    expect(srcdoc).toContain("script-src 'unsafe-inline'");
+    // file://, so the scripts are embedded, admitted by nonce.
+    const nonce = srcdoc.match(/script-src 'nonce-([0-9a-f]{32})';/)[1];
+    expect(srcdoc).toContain(`<script nonce="${nonce}">`);
     // Granting this again would undo the reason handlers became real files.
     expect(srcdoc).not.toContain('unsafe-eval');
+});
+
+test('inline handlers in an SVG do not run inside the frame', async ({page}) => {
+    // file:// embeds the frame's scripts inline; inline code in an SVG must not run.
+    const result = await page.evaluate(async () => {
+        const sandbox = new window.Sandbox([{text: `
+            window.onSandboxMessage = function () {
+                window.__errorRan = false;
+                var container = document.createElement('span');
+                container.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg">' +
+                    '<image href="data:image/png;base64,Tk9UQVBORw==" ' +
+                    'onerror="window.__errorRan = true"/></svg>';
+                document.body.appendChild(container);
+                return new Promise(function (resolve) {
+                    setTimeout(function () {
+                        resolve(window.__errorRan);
+                    }, 300);
+                });
+            }
+        `}], {timeoutMs: 5000});
+        try {
+            return await sandbox.send(null);
+        } finally {
+            sandbox.destroy();
+        }
+    });
+    expect(result).toBe(false);
 });
 
 test('eval is unavailable inside the frame', async ({page}) => {

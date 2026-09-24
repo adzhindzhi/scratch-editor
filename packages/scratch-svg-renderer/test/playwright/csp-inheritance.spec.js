@@ -35,6 +35,13 @@ const HARNESS_HTML = `<!DOCTYPE html>
 const PROBE_HANDLER = `window.onSandboxMessage = function () {
     window.__scriptRan = false;
     window.__errorRan = false;
+    window.__gadgetRan = false;
+    // A cloned DOMParser node does execute, so this runs if the policy allows its URL.
+    var doc = new DOMParser().parseFromString(
+        '<svg xmlns="http://www.w3.org/2000/svg"><script href="${ORIGIN}/gadget.js"></' + 'script></svg>',
+        'image/svg+xml'
+    );
+    document.body.appendChild(document.importNode(doc.documentElement, true));
     var container = document.createElement('span');
     container.innerHTML =
         '<svg xmlns="http://www.w3.org/2000/svg">' +
@@ -44,7 +51,7 @@ const PROBE_HANDLER = `window.onSandboxMessage = function () {
     document.body.appendChild(container);
     return new Promise(function (resolve) {
         setTimeout(function () {
-            resolve({scriptRan: window.__scriptRan, errorRan: window.__errorRan});
+            resolve({scriptRan: window.__scriptRan, errorRan: window.__errorRan, gadgetRan: window.__gadgetRan});
         }, 300);
     });
 };`;
@@ -61,6 +68,14 @@ test.beforeEach(async ({page}) => {
                     'Content-Security-Policy': SCRIPT_SRC
                 },
                 body: HARNESS_HTML
+            });
+        }
+
+        if (pathname === '/gadget.js') {
+            return route.fulfill({
+                status: 200,
+                headers: {'Content-Type': 'text/javascript'},
+                body: 'window.__gadgetRan = true;'
             });
         }
 
@@ -130,16 +145,16 @@ test('the frame is built with URL delivery, not inline script', async ({page}) =
         return captured;
     }, SVG_NO_VIEWBOX);
 
-    expect(srcdoc).toContain(`script-src ${ORIGIN}`);
-    expect(srcdoc).toContain(`<script src="${ORIGIN}/assets/runner.`);
+    const nonce = srcdoc.match(/script-src 'nonce-([0-9a-f]{32})';/)[1];
+    expect(srcdoc).toContain(`<script nonce="${nonce}" src="${ORIGIN}/assets/runner.`);
     // style-src keeps 'unsafe-inline' for the font <style>; script-src must not.
     expect(srcdoc).not.toContain("script-src 'unsafe-inline'");
     expect(srcdoc).not.toContain('unsafe-eval');
 });
 
 test('attacker SVG cannot execute inside the frame', async ({page}) => {
-    // The reason the sandbox exists: script-src names only the asset origin,
-    // so neither a <script> element nor an inline onerror in a costume runs.
+    // The reason the sandbox exists: script-src admits only the frame's own tags,
+    // so no <script>, same-origin or not, and no inline onerror in a costume runs.
     await page.goto(`${ORIGIN}/harness.html`);
     await page.waitForFunction(() => typeof window.ScratchSVGRenderer === 'object');
 
@@ -155,5 +170,5 @@ test('attacker SVG cannot execute inside the frame', async ({page}) => {
         }
     }, ORIGIN);
 
-    expect(result).toEqual({scriptRan: false, errorRan: false});
+    expect(result).toEqual({scriptRan: false, errorRan: false, gadgetRan: false});
 });

@@ -1,10 +1,5 @@
-/**
- * Whether this is a development build. Bundlers replace `process.env.NODE_ENV`
- * with a string at build time; one that leaves it in place gives a browser
- * bundle with no `process` global, so the read is guarded rather than checked
- * with `typeof process`, which not every bundler rewrites.
- * @returns {boolean} True only when NODE_ENV is 'development'.
- */
+// Bundlers replace `process.env.NODE_ENV` at build time. If one doesn't, the
+// browser has no `process`, and the failed read counts as a production build.
 const isDevelopmentBuild = () => {
     try {
         return process.env.NODE_ENV === 'development'; // eslint-disable-line no-undef

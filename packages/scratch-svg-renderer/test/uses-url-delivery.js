@@ -1,20 +1,13 @@
 const test = require('tap').test;
 const fs = require('fs');
-const path = require('path');
 const vm = require('vm');
 const {usesUrlDelivery} = require('../src/sandbox/uses-url-delivery');
 
-const SOURCE = fs.readFileSync(path.resolve(__dirname, '../src/sandbox/uses-url-delivery.js'), 'utf8');
-
-/**
- * Load the module into a fresh context with only the given globals, the way a
- * browser runs a bundle whose bundler left `process.env.NODE_ENV` in place.
- * @param {object} globals Globals for the context, such as `window`.
- * @returns {function(): boolean} That context's `usesUrlDelivery`.
- */
-const loadInBrowserLikeContext = globals => {
+// Runs the module with only the given globals, like a browser bundle that kept `process.env.NODE_ENV`.
+const loadInBrowser = globals => {
     const module = {exports: {}};
-    vm.runInNewContext(SOURCE, {...globals, module});
+    const source = fs.readFileSync(require.resolve('../src/sandbox/uses-url-delivery'), 'utf8');
+    vm.runInNewContext(source, {...globals, module});
     return module.exports.usesUrlDelivery;
 };
 
@@ -72,17 +65,9 @@ test('build with any other NODE_ENV on http(s) delivers by URL', t => {
     t.end();
 });
 
-test('browser bundle without a process global delivers by URL on http(s)', t => {
-    const usesUrlDeliveryInBrowser = loadInBrowserLikeContext({window: {location: {protocol: 'https:'}}});
-    t.equal(usesUrlDeliveryInBrowser(), true);
-    t.end();
-});
-
-test('browser bundle with a process global but no env delivers by URL on http(s)', t => {
-    const usesUrlDeliveryInBrowser = loadInBrowserLikeContext({
-        process: {},
-        window: {location: {protocol: 'https:'}}
-    });
-    t.equal(usesUrlDeliveryInBrowser(), true);
+test('browser bundle without process or process.env delivers by URL on http(s)', t => {
+    const window = {location: {protocol: 'https:'}};
+    t.equal(loadInBrowser({window})(), true);
+    t.equal(loadInBrowser({window, process: {}})(), true);
     t.end();
 });

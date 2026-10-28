@@ -22,10 +22,12 @@ const DEFAULT_TIMEOUT_MS = 30000;
 class Sandbox {
     /**
      * @param {Array<{url?: string, text?: string}>} scripts Scripts to run, in
-     *     execution order. Each must carry the form this host uses: `url` for
-     *     an emitted asset on http(s), `text` for source embedded in the frame
-     *     document elsewhere. Supplying both makes one descriptor work on any
-     *     host. Together they must define `window.onSandboxMessage`.
+     *     execution order. Each must carry the form `usesUrlDelivery()` picks
+     *     for this host: `url` for an emitted asset in production builds on
+     *     http(s), `text` for source embedded in the frame document in
+     *     development builds and on other protocols. Supplying both makes one
+     *     descriptor work on any host. Together they must define
+     *     `window.onSandboxMessage`.
      * @param {object} [options] Configuration options.
      * @param {number} [options.timeoutMs] Per-send timeout in
      *     milliseconds (default 30000). Set to 0 to disable.
